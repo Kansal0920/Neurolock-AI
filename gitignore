@@ -1,0 +1,37 @@
+# Python cache and system files
+__pycache__/
+*.py[cod]
+*.DS_Store
+
+# Virtual environments
+venv/
+env/
+
+# Model files
+*.h5
+*.hdf5
+*.pb
+
+# Audio files
+*.mp3
+*.wav
+
+# Logs and junk
+*.log
+
+# OS specific
+Thumbs.db
+.DS_Store
+
+# IDE configs
+.vscode/
+.idea/
+
+# Jupyter/IPython
+.ipynb_checkpoints/
+
+# Others
+*.egg-info/
+build/
+dist/
+*.bak
