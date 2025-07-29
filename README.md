@@ -50,9 +50,3 @@ NEUROLOCK-AI/
 - Pygame (for sound playback)
 
 ---
-
-## ⚙️ How to Run
-
-1. **Clone the Repo**
-   ```bash
-   git clone https://github.com/YOUR_USERNAME/Neurolock-AI.git
