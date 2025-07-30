@@ -1,68 +1,69 @@
-import sys
-import os
 import cv2
 import numpy as np
-import pygame
+import tensorflow as tf
+import time
 from tensorflow.keras.models import load_model
+from utils.preprocess import preprocess_face
+from app.voice_feedback import speak
+import getpass
 
-# ✅ Path Fix: Add utils/ to sys.path
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'utils')))
-from preprocess import emotion_map
+# Load the trained CNN model
+model = load_model("models/cnn_model.h5")
 
-# ✅ Load Trained Model
-model_path = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'models', 'cnn_model.h5'))
-model = load_model(model_path)
+# Load Haar Cascade for face detection
+face_cascade = cv2.CascadeClassifier(cv2.data.haarcascades + 'haarcascade_frontalface_default.xml')
 
-# ✅ Initialize Pygame for voice alert
-pygame.init()
-pygame.mixer.init()
+# Emotion labels
+emotion_labels = ['Angry', 'Disgust', 'Fear', 'Happy', 'Neutral', 'Sad', 'Surprise']
+last_emotion = None
+last_spoken_time = 0
 
-def speak_alert(text):
-    print(f"🔊 {text}")  # For debug
-    pygame.mixer.music.load("voice_alert.mp3")  # You can pre-generate TTS to MP3 or use vosk in real-time
-    pygame.mixer.music.play()
+# 🎯 Step 1: Password authentication
+password = getpass.getpass("🔐 Enter NEUROLOCK access password: ")
+if password != "admin@123":  # You can change this
+    print("❌ Incorrect password! Exiting.")
+    exit()
 
-# ✅ Start Webcam (built-in macOS iSight)
-cap = cv2.VideoCapture(0)  # 0 works for most macs' built-in cams
+print("✅ Password accepted.\n🔐 NEUROLOCK AI is now running... Press 'q' to quit.")
 
-if not cap.isOpened():
-    print("🚫 Could not access the webcam.")
-    sys.exit()
-
-print("🎥 Webcam started. Press Q to quit.")
+# Start webcam
+cap = cv2.VideoCapture(0)
 
 while True:
     ret, frame = cap.read()
-    frame = cv2.flip(frame, 1)
     if not ret:
-        print("❌ Failed to grab frame.")
         break
 
-    # Convert to grayscale and resize to 48x48 (model input)
     gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-    face = cv2.resize(gray, (48, 48))
-    face = face.reshape(1, 48, 48, 1) / 255.0
+    faces = face_cascade.detectMultiScale(gray, scaleFactor=1.3, minNeighbors=5)
 
-    # Predict emotion
-    predictions = model.predict(face)
-    predicted_class = np.argmax(predictions)
-    print(f"Predicted class: {predicted_class} → Emotion: {emotion_map.get(int(predicted_class), 'Unknown')}")
-    emotion_label = emotion_map[int(predicted_class)]
+    for (x, y, w, h) in faces:
+        face_img = preprocess_face(gray, x, y, w, h)
+        if face_img is None:
+            continue
 
-    # Display on screen
-    cv2.putText(frame, f'Emotion: {emotion_label}', (10, 30),
-                cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2)
-    cv2.imshow('NEUROLOCK AI - Face Emotion Scanner 🔐🧠', frame)
+        face_img = np.reshape(face_img, (1, 48, 48, 1))  # Only one batch, 48x48 image, 1 channel
+        prediction = model.predict(face_img, verbose=0)
 
-    # Optional Alert
-    if emotion_label == 'angry':  # 🔥 trigger security voice alert
-        speak_alert("Suspicious Emotion Detected!")
+        emotion_idx = np.argmax(prediction)
+        emotion = emotion_labels[emotion_idx]
 
-    # Quit on 'q'
+        # Draw box and label
+        cv2.rectangle(frame, (x, y), (x+w, y+h), (0, 255, 0), 2)
+        cv2.putText(frame, emotion, (x, y - 10), cv2.FONT_HERSHEY_SIMPLEX,
+                    0.9, (255, 255, 255), 2)
+
+        # 🎯 Speak only once for each new emotion, wait 2 seconds
+        current_time = time.time()
+        if emotion != last_emotion or (current_time - last_spoken_time) > 2:
+            speak(f"Emotion detected: {emotion}")
+            last_emotion = emotion
+            last_spoken_time = current_time
+
+    cv2.imshow("NEUROLOCK - Emotion Detection", frame)
+
     if cv2.waitKey(1) & 0xFF == ord('q'):
         break
 
-# Release resources
 cap.release()
 cv2.destroyAllWindows()
-pygame.quit()

@@ -1,14 +1,15 @@
-# app/voice_feedback.py
-
-import pygame
+from gtts import gTTS
+import os
+import tempfile
 import time
-import pyttsx3
 
-# Initialize TTS engine (offline, no API needed)
-engine = pyttsx3.init()
-engine.setProperty('rate', 160)  # Adjust voice speed
-
-def speak_alert(text):
-    print(f"[NEUROLOCK] ALERT: {text}")
-    engine.say(text)
-    engine.runAndWait()
+def speak(text):
+    try:
+        tts = gTTS(text=text, lang='en')
+        with tempfile.NamedTemporaryFile(delete=False, suffix='.mp3') as fp:
+            tts.save(fp.name)
+            os.system(f"afplay {fp.name}")  # MacBook uses afplay
+            time.sleep(0.5)  # brief delay to ensure playback
+            os.remove(fp.name)
+    except Exception as e:
+        print("❌ Voice Feedback Error:", e)
