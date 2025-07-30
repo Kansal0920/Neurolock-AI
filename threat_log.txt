@@ -1,0 +1,4 @@
+# NEUROLOCK AI - Threat Log 📜
+
+# All suspicious emotional activities detected by the AI will be recorded here.
+# Format: [Timestamp] 🚨 Emotion (Confidence)
